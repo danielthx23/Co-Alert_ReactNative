@@ -31,7 +31,12 @@ function DrawerNavigator({ usuarioLogado, navigationRef }: {
 
   useEffect(() => {
     const checkAuthentication = async () => {
-      await checkAuth();
+      const isAuthenticated = await checkAuth();
+      if (!isAuthenticated) {
+        navigationRef.current?.navigate('UsuarioScreen', {
+          screen: 'UsuarioLogin'
+        });
+      }
     };
     checkAuthentication();
   }, []);

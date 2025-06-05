@@ -61,9 +61,8 @@ export const UsuarioDetalhes: React.FC = () => {
           <TouchableOpacity 
             style={styles.backButton} 
             onPress={() => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'MainApp', params: { screen: 'HomeScreen' } }],
+              navigation.navigate('MainApp', {
+                screen: 'HomeScreen'
               });
             }}
           >

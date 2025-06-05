@@ -10,7 +10,6 @@ import {
   DrawerItemList,
   DrawerContentComponentProps,
 } from '@react-navigation/drawer';
-import { Ionicons } from '@expo/vector-icons';
 import { Usuario } from '../models/usuario';
 
 interface CustomDrawerProps extends DrawerContentComponentProps {
