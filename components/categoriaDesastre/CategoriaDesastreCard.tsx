@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { CategoriaDesastre } from '../../models';
+import { CategoriaDesastre } from '../../models/categoriaDesastre';
 
 interface Props {
   categoria: CategoriaDesastre;

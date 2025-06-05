@@ -1,13 +1,17 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
+import { Postagem } from '../models/postagem';
 
 export type RootStackParamList = {
-  UsuarioScreen: undefined;
-  MainApp: undefined;
-  HomeScreen: undefined;
-  PostagemScreen: undefined;
-  LocalizacaoScreen: undefined;
-  CategoriaDesastreScreen: undefined;
-  ComentarioScreen: undefined;
+  UsuarioScreen: NavigatorScreenParams<UsuarioStackParamList>;
+  MainApp: NavigatorScreenParams<DrawerParamList>;
+  PostagemDetalhes: { id: number };
+};
+
+export type UsuarioStackParamList = {
+  UsuarioLogin: undefined;
+  UsuarioCadastro: undefined;
+  UsuarioDetalhes: { id: number };
+  UsuarioFormulario: { id: number };
 };
 
 export type AuthStackParamList = {
@@ -17,8 +21,13 @@ export type AuthStackParamList = {
 
 export type PostagemStackParamList = {
   PostagemListagem: undefined;
-  PostagemFormulario: { id?: number } | undefined;
-  PostagemDetalhes: { id: number };
+  PostagemDetalhes: {
+    id: number;
+  };
+  PostagemFormulario: {
+    id?: number;
+    postagem?: Postagem;
+  };
 };
 
 export type LocalizacaoStackParamList = {
@@ -33,16 +42,10 @@ export type CategoriaDesastreStackParamList = {
   CategoriaDesastreDetalhes: { id: number };
 };
 
-export type ComentarioStackParamList = {
-  ComentarioListagem: undefined;
-  ComentarioFormulario: { id?: number } | undefined;
-  ComentarioDetalhes: { id: number };
-};
-
 export type DrawerParamList = {
   HomeScreen: undefined;
   PostagemScreen: NavigatorScreenParams<PostagemStackParamList>;
   CategoriaDesastreScreen: NavigatorScreenParams<CategoriaDesastreStackParamList>;
   LocalizacaoScreen: NavigatorScreenParams<LocalizacaoStackParamList>;
-  ComentarioScreen: NavigatorScreenParams<ComentarioStackParamList>;
+  UsuarioScreen: NavigatorScreenParams<UsuarioStackParamList>;
 }; 

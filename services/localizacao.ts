@@ -1,10 +1,12 @@
 import api from './api';
-import { Localizacao } from '../models';
+import { Localizacao } from '../models/localizacao';
 
 export const localizacaoService = {
-  listarTodos: () => api.get<Localizacao[]>('/localizacao'),
-  
-  obterPorId: (id: number) => api.get<Localizacao>(`/localizacao/${id}`),
+  listarTodos: () =>
+    api.get<Localizacao[]>('/localizacao'),
+
+  buscarPorId: (id: number) =>
+    api.get<Localizacao>(`/localizacao/${id}`),
   
   criar: (localizacao: Omit<Localizacao, 'id'>) => 
     api.post<Localizacao>('/localizacao', localizacao),

@@ -11,8 +11,9 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { localizacaoService } from '../../services/localizacao';
-import { Localizacao } from '../../models';
 import { LocalizacaoStackParamList } from '../../types/navigation';
+import { Localizacao } from '../../models/localizacao';
+import { useToast } from '../../contexts/ToastContext';
 
 type LocalizacaoListagemNavigationProp = StackNavigationProp<
   LocalizacaoStackParamList
@@ -22,6 +23,7 @@ export const LocalizacaoListagem: React.FC = () => {
   const [localizacoes, setLocalizacoes] = useState<Localizacao[]>([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<LocalizacaoListagemNavigationProp>();
+  const { showToast } = useToast();
 
   const carregarLocalizacoes = async () => {
     try {
@@ -29,7 +31,7 @@ export const LocalizacaoListagem: React.FC = () => {
       setLocalizacoes(response.data);
     } catch (error) {
       console.error(error);
-      // Toast will show error message
+      showToast('Erro', 'Não foi possível carregar as localizações.', 'danger');
     } finally {
       setLoading(false);
     }
@@ -39,17 +41,25 @@ export const LocalizacaoListagem: React.FC = () => {
     carregarLocalizacoes();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      carregarLocalizacoes();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const renderItem = ({ item }: { item: Localizacao }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => {
-        if (item.id) {
-          navigation.navigate('LocalizacaoDetalhes', { id: item.id });
+        if (item.idLocalizacao) {
+          navigation.navigate('LocalizacaoDetalhes', { id: item.idLocalizacao });
         }
       }}
     >
       <View style={styles.cardHeader}>
-        <Ionicons name="location" size={24} color="#009b29" />
+        <Ionicons name="location" size={24} color="#ff4c4c" />
         <Text style={styles.logradouro}>{item.nmLogradouro}</Text>
       </View>
       <Text style={styles.bairro}>{item.nmBairro}</Text>
@@ -62,7 +72,7 @@ export const LocalizacaoListagem: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#009b29" />
+        <ActivityIndicator size="large" color="#ff4c4c" />
       </View>
     );
   }
@@ -72,7 +82,7 @@ export const LocalizacaoListagem: React.FC = () => {
       <FlatList
         data={localizacoes}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id?.toString() || ''}
+        keyExtractor={(item) => item.idLocalizacao?.toString() || ''}
         contentContainerStyle={styles.list}
       />
       <TouchableOpacity
@@ -88,13 +98,13 @@ export const LocalizacaoListagem: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   list: {
     padding: 16,
@@ -118,7 +128,7 @@ const styles = StyleSheet.create({
   },
   bairro: {
     fontSize: 16,
-    color: '#009b29',
+    color: '#ff4c4c',
     marginBottom: 4,
   },
   cidade: {
@@ -129,7 +139,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 16,
-    backgroundColor: '#009b29',
+    backgroundColor: '#ff4c4c',
     width: 56,
     height: 56,
     borderRadius: 28,

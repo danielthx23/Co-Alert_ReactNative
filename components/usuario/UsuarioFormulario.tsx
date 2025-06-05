@@ -9,34 +9,34 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { usuarioService } from '../../services/usuario';
-import { AuthStackParamList } from '../../types/navigation';
-import ToastMessage, { ToastMessageRef } from '../Toast';
+import { UsuarioStackParamList } from '../../types/navigation';
 import { Usuario } from '../../models/usuario';
+import { useToast } from '../../contexts/ToastContext';
 
-type UsuarioFormularioNavigationProp = StackNavigationProp<
-  AuthStackParamList,
-  'UsuarioCadastro'
->;
+type UsuarioFormularioNavigationProp = StackNavigationProp<UsuarioStackParamList>;
+type UsuarioFormularioRouteProp = RouteProp<UsuarioStackParamList, 'UsuarioFormulario'>;
 
 const AnimatedTextInput = Animated.createAnimatedComponent(RNTextInput);
 
 export const UsuarioFormulario: React.FC = () => {
-  const [usuario, setUsuario] = useState<Omit<Usuario, 'id'>>({
-    nmUsuario: '',
-    nrSenha: '',
-    nmEmail: '',
-  });
   const [loading, setLoading] = useState(false);
+  const [usuario, setUsuario] = useState<Omit<Usuario, 'idUsuario'>>({
+    nmUsuario: '',
+    nmEmail: '',
+    nrSenha: '',
+  });
+
+  const navigation = useNavigation<UsuarioFormularioNavigationProp>();
+  const route = useRoute<UsuarioFormularioRouteProp>();
+  const { showToast } = useToast();
+  const isEditing = Boolean(route.params?.id);
 
   const nomeBorderAnim = useRef(new Animated.Value(0)).current;
   const emailBorderAnim = useRef(new Animated.Value(0)).current;
   const senhaBorderAnim = useRef(new Animated.Value(0)).current;
-  const toastRef = useRef<ToastMessageRef>(null);
-
-  const navigation = useNavigation<UsuarioFormularioNavigationProp>();
 
   const animateBorder = (anim: Animated.Value, value: number) => {
     Animated.timing(anim, {
@@ -46,7 +46,7 @@ export const UsuarioFormulario: React.FC = () => {
     }).start();
   };
 
-  const handleChange = (key: keyof Usuario, value: string) => {
+  const handleChange = (key: keyof Omit<Usuario, 'idUsuario'>, value: string) => {
     setUsuario({ ...usuario, [key]: value });
 
     if (key === 'nmEmail') {
@@ -62,30 +62,59 @@ export const UsuarioFormulario: React.FC = () => {
     }
   };
 
+  React.useEffect(() => {
+    const carregarUsuario = async () => {
+      if (isEditing && route.params?.id) {
+        try {
+          const response = await usuarioService.obterPorId(route.params.id);
+          setUsuario({
+            nmUsuario: response.data.nmUsuario || '',
+            nmEmail: response.data.nmEmail || '',
+            nrSenha: '',
+          });
+          animateBorder(nomeBorderAnim, 1);
+          animateBorder(emailBorderAnim, 1);
+        } catch (error) {
+          console.error(error);
+          showToast('Erro', 'Não foi possível carregar os dados do usuário.', 'danger');
+          navigation.goBack();
+        }
+      }
+    };
+
+    carregarUsuario();
+  }, [route.params?.id]);
+
   const handleSubmit = async () => {
-    if (!usuario.nmUsuario || !usuario.nrSenha || !usuario.nmEmail.includes('@')) {
-      toastRef.current?.show('Erro', 'Preencha todos os campos corretamente.', 'danger');
+    if (!usuario.nmUsuario || !usuario.nmEmail.includes('@') || (!usuario.nrSenha && !isEditing)) {
+      showToast('Erro', 'Preencha todos os campos corretamente.', 'danger');
       if (!usuario.nmUsuario) animateBorder(nomeBorderAnim, 2);
-      if (!usuario.nrSenha) animateBorder(senhaBorderAnim, 2);
       if (!usuario.nmEmail.includes('@')) animateBorder(emailBorderAnim, 2);
+      if (!usuario.nrSenha && !isEditing) animateBorder(senhaBorderAnim, 2);
       return;
     }
 
     try {
       setLoading(true);
-      await usuarioService.criar(usuario);
-      toastRef.current?.show('Sucesso', 'Cadastro realizado com sucesso!', 'success');
-      navigation.navigate('UsuarioLogin');
+      if (isEditing && route.params?.id) {
+        await usuarioService.atualizar(route.params.id, usuario);
+        showToast('Sucesso', 'Perfil atualizado com sucesso!', 'success');
+        navigation.goBack();
+      } else {
+        await usuarioService.criar(usuario);
+        showToast('Sucesso', 'Usuário criado com sucesso!', 'success');
+        navigation.navigate('UsuarioLogin');
+      }
     } catch (error) {
       console.error(error);
-      toastRef.current?.show('Erro', 'Erro ao cadastrar. Tente novamente.', 'danger');
+      showToast('Erro', `Não foi possível ${isEditing ? 'atualizar' : 'criar'} o usuário.`, 'danger');
     } finally {
       setLoading(false);
     }
   };
 
   const handleVoltar = () => {
-    navigation.navigate('UsuarioLogin');
+    navigation.goBack();
   };
 
   const nomeColor = nomeBorderAnim.interpolate({
@@ -105,16 +134,17 @@ export const UsuarioFormulario: React.FC = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ToastMessage ref={toastRef} />
       <View style={styles.header}>
-        <Text style={styles.title}>Cadastro de Usuário</Text>
-        <Text style={styles.subtitle}>Crie sua conta no Co-Alert</Text>
+        <Text style={styles.title}>{isEditing ? 'Editar Perfil' : 'Cadastro de Usuário'}</Text>
+        <Text style={styles.subtitle}>
+          {isEditing ? 'Atualize seus dados' : 'Crie sua conta no Co-Alert'}
+        </Text>
       </View>
 
       <View style={styles.form}>
         <Text style={styles.label}>Nome de Usuário</Text>
         <AnimatedTextInput
-          style={[styles.input, { borderBottomColor: nomeColor }]}
+          style={[styles.input, { borderLeftColor: nomeColor }]}
           value={usuario.nmUsuario}
           onChangeText={(text) => handleChange('nmUsuario', text)}
           placeholder="Digite o nome de usuário"
@@ -123,7 +153,7 @@ export const UsuarioFormulario: React.FC = () => {
 
         <Text style={styles.label}>Email</Text>
         <AnimatedTextInput
-          style={[styles.input, { borderBottomColor: emailColor }]}
+          style={[styles.input, { borderLeftColor: emailColor }]}
           value={usuario.nmEmail}
           onChangeText={(text) => handleChange('nmEmail', text)}
           placeholder="Digite o email"
@@ -132,32 +162,46 @@ export const UsuarioFormulario: React.FC = () => {
           autoCapitalize="none"
         />
 
-        <Text style={styles.label}>Senha</Text>
+        <Text style={styles.label}>{isEditing ? 'Nova Senha (opcional)' : 'Senha'}</Text>
         <AnimatedTextInput
-          style={[styles.input, { borderBottomColor: senhaColor }]}
+          style={[styles.input, { borderLeftColor: senhaColor }]}
           value={usuario.nrSenha}
           onChangeText={(text) => handleChange('nrSenha', text)}
-          placeholder="Digite a senha"
+          placeholder={isEditing ? "Digite a nova senha" : "Digite a senha"}
           placeholderTextColor="#999"
           secureTextEntry
         />
 
-        <Pressable
-          style={styles.buttonWrapper}
-          onPress={handleSubmit}
-        >
-          <View style={styles.button}>
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Cadastrar</Text>
-            )}
-          </View>
-        </Pressable>
+        <View style={styles.buttonGroup}>
+          {isEditing && (
+            <Pressable
+              style={[styles.buttonWrapper, styles.buttonWrapperCancel]}
+              onPress={handleVoltar}
+            >
+              <View style={[styles.button, styles.buttonCancel]}>
+                <Text style={[styles.buttonText, styles.buttonTextCancel]}>Cancelar</Text>
+              </View>
+            </Pressable>
+          )}
+          <Pressable
+            style={[styles.buttonWrapper, isEditing && styles.buttonWrapperConfirm]}
+            onPress={handleSubmit}
+          >
+            <View style={styles.button}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>{isEditing ? 'Atualizar' : 'Cadastrar'}</Text>
+              )}
+            </View>
+          </Pressable>
+        </View>
 
-        <Pressable style={styles.voltarWrapper} onPress={handleVoltar}>
-          <Text style={styles.voltarText}>Já tem uma conta? Entre na sua conta</Text>
-        </Pressable>
+        {!isEditing && (
+          <Pressable style={styles.voltarWrapper} onPress={handleVoltar}>
+            <Text style={styles.voltarText}>Já tem uma conta? Entre na sua conta</Text>
+          </Pressable>
+        )}
       </View>
     </ScrollView>
   );
@@ -205,13 +249,24 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 16,
     color: '#ffffff',
-    backgroundColor: '#1b1b1b',
+    backgroundColor: '#1c1c1c',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
   },
   buttonWrapper: {
     borderColor: '#ff4c4c',
     borderWidth: 2,
     borderRadius: 8,
-    marginTop: 10,
+    flex: 1,
+  },
+  buttonWrapperCancel: {
+    borderColor: '#2d2d2d',
+  },
+  buttonWrapperConfirm: {
+    flex: 2,
   },
   button: {
     padding: 12,
@@ -219,10 +274,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#ff4c4c',
   },
+  buttonCancel: {
+    backgroundColor: '#2d2d2d',
+  },
   buttonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  buttonTextCancel: {
+    color: '#999',
   },
   voltarWrapper: {
     alignItems: 'center',

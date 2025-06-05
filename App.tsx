@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, MutableRefObject, RefObject } from 'react';
+import React, { useRef, useState, useEffect, RefObject } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
@@ -7,39 +7,50 @@ import { StyleSheet, View, Text, TouchableOpacity, Modal, Pressable } from 'reac
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import ToastMessage, { ToastMessageRef } from './components/Toast';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 import { Usuario } from './models/usuario';
 import { UsuarioScreen } from './screens/UsuarioScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { PostagemScreen } from './screens/PostagemScreen';
 import { LocalizacaoScreen } from './screens/LocalizacaoScreen';
 import { CategoriaDesastreScreen } from './screens/CategoriaDesastreScreen';
-import { ComentarioScreen } from './screens/ComentarioScreen';
-import { RootStackParamList, DrawerParamList } from './types/navigation';
+import { RootStackParamList, DrawerParamList, UsuarioStackParamList } from './types/navigation';
 import { usuarioService } from './services/usuario';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
-function DrawerNavigator({ usuarioLogado, toastRef, navigationRef }: { 
+function DrawerNavigator({ usuarioLogado, navigationRef }: { 
   usuarioLogado?: Usuario, 
-  toastRef: RefObject<ToastMessageRef | null>, 
-  navigationRef: RefObject<NavigationContainerRef<RootStackParamList> | null>
+  navigationRef: RefObject<NavigationContainerRef<RootStackParamList>>
 }) {
   const [menuVisible, setMenuVisible] = useState(false);
+  const { showToast } = useToast();
+
+  const handleNavigateToProfile = () => {
+    setMenuVisible(false);
+    if (usuarioLogado?.idUsuario) {
+      navigationRef.current?.navigate('UsuarioScreen', {
+        screen: 'UsuarioDetalhes',
+        params: {
+          id: usuarioLogado.idUsuario
+        }
+      });
+    }
+  };
 
   const signOut = async () => {
     try {
       await AsyncStorage.removeItem('user_token');
-      toastRef.current?.show("Sessão encerrada", "Você foi deslogado com sucesso.", "info");
+      showToast("Sessão encerrada", "Você foi deslogado com sucesso.", "info");
     } catch (error) {
       console.error("Erro ao remover token de usuário:", error);
-      toastRef.current?.show("Erro", "Não foi possível encerrar a sessão.", "danger");
+      showToast("Erro", "Não foi possível encerrar a sessão.", "danger");
     } finally {
       setMenuVisible(false);
-      setTimeout(() => {
-        navigationRef.current?.navigate('UsuarioScreen');
-      }, 1000);
+      navigationRef.current?.navigate('UsuarioScreen', {
+        screen: 'UsuarioLogin'
+      });
     }
   };
 
@@ -57,7 +68,7 @@ function DrawerNavigator({ usuarioLogado, toastRef, navigationRef }: {
             borderRadius: 0,
           },
           drawerActiveBackgroundColor: '#1b1b1b',
-          drawerActiveTintColor: '#009b29',
+          drawerActiveTintColor: '#ff3838',
           drawerInactiveTintColor: '#383838',
           headerStyle: {
             backgroundColor: '#0c0c0c',
@@ -88,8 +99,16 @@ function DrawerNavigator({ usuarioLogado, toastRef, navigationRef }: {
                   <View style={styles.dropdownMenu}>
                     <TouchableOpacity
                       style={styles.dropdownItem}
+                      onPress={handleNavigateToProfile}
+                    >
+                      <Ionicons name="person-outline" size={20} color="#fff" />
+                      <Text style={styles.dropdownText}>Meu Perfil</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.dropdownItem, styles.dropdownItemSignOut]}
                       onPress={signOut}
                     >
+                      <Ionicons name="log-out-outline" size={20} color="#ff4c4c" />
                       <Text style={[styles.dropdownText, styles.dropdownTextSignOut]}>Sair</Text>
                     </TouchableOpacity>
                   </View>
@@ -101,13 +120,14 @@ function DrawerNavigator({ usuarioLogado, toastRef, navigationRef }: {
       >
         <Drawer.Screen 
           name="HomeScreen" 
-          component={HomeScreen}
           options={{ title: 'Início' }}
-        />
+        >
+          {props => <HomeScreen {...props} navigationRef={navigationRef} />}
+        </Drawer.Screen>
         <Drawer.Screen 
           name="PostagemScreen" 
           component={PostagemScreen}
-          options={{ title: 'Feed de Alertas' }}
+          options={{ title: 'Feed' }}
         />
         <Drawer.Screen 
           name="CategoriaDesastreScreen" 
@@ -119,20 +139,15 @@ function DrawerNavigator({ usuarioLogado, toastRef, navigationRef }: {
           component={LocalizacaoScreen}
           options={{ title: 'Localizações' }}
         />
-        <Drawer.Screen 
-          name="ComentarioScreen" 
-          component={ComentarioScreen}
-          options={{ title: 'Comentários' }}
-        />
       </Drawer.Navigator>
     </>
   );
 }
 
-export default function App() {
+function AppContent() {
   const [usuarioLogado, setUsuarioLogado] = useState<Usuario>();
-  const toastRef = useRef<ToastMessageRef>(null);
-  const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const verificarToken = async () => {
@@ -144,20 +159,28 @@ export default function App() {
             const [nmEmail, nrSenha] = tokenParts;
             const usuario = await usuarioService.autenticar({ nmEmail, nrSenha });
             setUsuarioLogado(usuario.data);
-            navigationRef.current?.navigate('MainApp');
-            toastRef.current?.show("Login efetuado!", "Bem-vindo(a) de volta.", "success");
+            navigationRef.current?.navigate('MainApp', {
+              screen: 'HomeScreen'
+            });
+            showToast("Login efetuado!", "Bem-vindo(a) de volta.", "success");
           } else {
             console.error("Formato de token inválido.");
-            toastRef.current?.show("Erro", "Token inválido.", "danger");
-            navigationRef.current?.navigate('UsuarioScreen');
+            showToast("Erro", "Token inválido.", "danger");
+            navigationRef.current?.navigate('UsuarioScreen', {
+              screen: 'UsuarioLogin'
+            });
           }
         } else {
-          navigationRef.current?.navigate('UsuarioScreen');
+          navigationRef.current?.navigate('UsuarioScreen', {
+            screen: 'UsuarioLogin'
+          });
         }
       } catch (error) {
         console.error("Erro ao verificar token de sessão:", error);
-        toastRef.current?.show("Erro", "Falha ao restaurar a sessão.", "danger");
-        navigationRef.current?.navigate('UsuarioScreen');
+        showToast("Erro", "Falha ao restaurar a sessão.", "danger");
+        navigationRef.current?.navigate('UsuarioScreen', {
+          screen: 'UsuarioLogin'
+        });
       }
     };
 
@@ -166,21 +189,17 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <ToastMessage
-        ref={toastRef}
-      />
       <NavigationContainer ref={navigationRef}>
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="UsuarioScreen">
-        <Stack.Screen name="UsuarioScreen">
-          {props => <UsuarioScreen {...props} setUsuarioLogado={setUsuarioLogado} />}
-        </Stack.Screen>
+          <Stack.Screen name="UsuarioScreen">
+            {props => <UsuarioScreen {...props} setUsuarioLogado={setUsuarioLogado} />}
+          </Stack.Screen>
           <Stack.Screen name="MainApp">
             {(props) => (
               <DrawerNavigator
                 {...props}
                 usuarioLogado={usuarioLogado}
-                toastRef={toastRef}
-                navigationRef={navigationRef}
+                navigationRef={navigationRef as RefObject<NavigationContainerRef<RootStackParamList>>}
               />
             )}
           </Stack.Screen>
@@ -188,6 +207,14 @@ export default function App() {
         <StatusBar style="light" />
       </NavigationContainer>
     </View>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
 
@@ -206,8 +233,8 @@ const styles = StyleSheet.create({
   },
   userName: {
     color: '#fff',
-    fontSize: 16,
     marginRight: 8,
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -215,23 +242,36 @@ const styles = StyleSheet.create({
   },
   dropdownMenu: {
     position: 'absolute',
-    top: 55,
-    right: 20,
+    right: 16,
+    top: 60,
     backgroundColor: '#1c1c1c',
     borderRadius: 8,
-    paddingVertical: 8,
-    width: 160,
+    padding: 4,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
     elevation: 5,
   },
   dropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+  },
+  dropdownItemSignOut: {
+    borderTopWidth: 1,
+    borderTopColor: '#2d2d2d',
   },
   dropdownText: {
     color: '#fff',
     fontSize: 16,
   },
   dropdownTextSignOut: {
-    color: '#dc3545',
+    color: '#ff4c4c',
   },
 });

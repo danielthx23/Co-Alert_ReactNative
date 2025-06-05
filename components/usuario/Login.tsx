@@ -15,7 +15,7 @@ import { usuarioService } from '../../services/usuario';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthStackParamList, RootStackParamList } from '../../types/navigation';
 import ToastMessage, { ToastMessageRef } from '../Toast';
-import { LoginCredentials, Usuario } from '../../models/usuario';
+import { LoginCredentials, Usuario, LoginResponse } from '../../models/usuario';
 
 type LoginScreenNavigationProp = StackNavigationProp<
   AuthStackParamList & RootStackParamList,
@@ -92,10 +92,11 @@ export const Login: React.FC<LoginProps> = ({ setUsuarioLogado }) => {
       setLoading(true);
       const credentials: LoginCredentials = { nmEmail: email, nrSenha: senha };
       const response = await usuarioService.autenticar(credentials);
-      setUsuarioLogado(response.data);
+      const loginResponse = response.data as Usuario;
+      setUsuarioLogado(loginResponse);
       toastRef.current?.show('Sucesso', 'Login efetuado com sucesso!', 'success');
-      await AsyncStorage.setItem('user_token', response.data.tokenProvisorio);
-      navigation.navigate('MainApp');
+      await AsyncStorage.setItem('user_token', loginResponse.tokenProvisorio || '');
+      navigation.navigate('MainApp' as never);
     } catch (error) {
       toastRef.current?.show('Erro', 'E-mail ou senha incorretos.', 'danger')
       setSenhaError('E-mail ou senha incorretos');

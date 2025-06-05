@@ -1,38 +1,76 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import { NavigationContainerRef } from '@react-navigation/native';
 import { postagemService } from '../services/postagem';
-import { RootStackParamList } from '../types/navigation';
+import { categoriaDesastreService } from '../services/categoriaDesastre';
 import { Postagem } from '../models/postagem';
+import { CategoriaDesastre } from '../models/categoriaDesastre';
+import { PostagemCard } from '../components/postagem/PostagemCard';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+import { RootStackParamList } from '../types/navigation';
 
-export const HomeScreen: React.FC = () => {
+type HomeScreenProps = {
+  navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>;
+};
+
+export const HomeScreen = ({ navigationRef }: HomeScreenProps) => {
   const [trendingPosts, setTrendingPosts] = useState<Postagem[]>([]);
-  const [nearbyPosts, setNearbyPosts] = useState<Postagem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const [selectedCategoria, setSelectedCategoria] = useState<number | null>(null);
+  const [categorias, setCategorias] = useState<CategoriaDesastre[]>([]);
+  const [loadingCategorias, setLoadingCategorias] = useState(true);
+
+  const carregarCategorias = async () => {
+    try {
+      const response = await categoriaDesastreService.listarTodos();
+      setCategorias(response.data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingCategorias(false);
+    }
+  };
 
   const carregarFeed = async () => {
     try {
-      // In a real app, these would be separate API endpoints
-      const trendingResponse = await postagemService.listarTodos();
-      
-      setTrendingPosts(trendingResponse.data);
-      setNearbyPosts([]); // Set nearbyPosts to an empty array or handle it appropriately
+      const response = await postagemService.listarTodos();
+      let posts = response.data;
+
+      // Filtrar por categoria se selecionada
+      if (selectedCategoria) {
+        posts = posts.filter(post => post.categoriaDesastreId === selectedCategoria);
+      }
+
+      // Filtrar por busca se houver
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        posts = posts.filter(post =>
+          post.nmTitulo.toLowerCase().includes(query) ||
+          post.nmConteudo.toLowerCase().includes(query)
+        );
+      }
+
+      // Ordenar posts por número de likes (trending)
+      posts = posts && posts.sort((a, b) => {
+        const likesA = a.nrLikes || 0;
+        const likesB = b.nrLikes || 0;
+        return likesB - likesA;
+      });
+
+      setTrendingPosts(posts);
     } catch (error) {
       console.error(error);
     } finally {
@@ -47,47 +85,34 @@ export const HomeScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    carregarFeed();
+    carregarCategorias();
   }, []);
 
+  useEffect(() => {
+    carregarFeed();
+  }, [selectedCategoria, searchQuery]);
+
   const renderPostItem = ({ item }: { item: Postagem }) => (
-    <TouchableOpacity
-      style={styles.card}
+    <PostagemCard
+      postagem={item}
       onPress={() => {
         if (item.idPostagem) {
-          navigation.navigate('PostagemScreen', {
-            screen: 'PostagemDetalhes',
-            params: { id: item.idPostagem },
+          navigationRef.current?.navigate('MainApp', {
+            screen: 'PostagemScreen',
+            params: {
+              screen: 'PostagemDetalhes',
+              params: { id: item.idPostagem }
+            }
           });
         }
       }}
-    >
-      <View style={styles.cardHeader}>
-        <Ionicons name="warning" size={24} color="#009b29" />
-        <Text style={styles.cardTitle}>{item.nmTitulo}</Text>
-      </View>
-      <Text style={styles.cardContent}>{item.nmConteudo}</Text>
-      <View style={styles.cardFooter}>
-        <Text style={styles.location}>
-          {item.localizacao?.nmCidade}, {item.localizacao?.nmEstado}
-        </Text>
-        <Text style={styles.date}>
-          {new Date(item.dtEnvio!).toLocaleDateString('pt-BR')}
-        </Text>
-      </View>
-    </TouchableOpacity>
+    />
   );
 
-  const renderSectionHeader = (title: string) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-    </View>
-  );
-
-  if (loading) {
+  if (loading || loadingCategorias) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#009b29" />
+        <ActivityIndicator size="large" color="#ff4c4c" />
       </View>
     );
   }
@@ -105,25 +130,63 @@ export const HomeScreen: React.FC = () => {
         />
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoriasContainer}
+        contentContainerStyle={styles.categoriasContent}
+      >
+        <TouchableOpacity
+          style={[
+            styles.categoriaChip,
+            selectedCategoria === null && styles.categoriaChipSelected
+          ]}
+          onPress={() => setSelectedCategoria(null)}
+        >
+          <Text
+            style={[
+              styles.categoriaText,
+              selectedCategoria === null && styles.categoriaTextSelected
+            ]}
+          >
+            Todos
+          </Text>
+        </TouchableOpacity>
+
+        {categorias && categorias.map(categoria => (
+          <TouchableOpacity
+            key={categoria.idCategoriaDesastre}
+            style={[
+              styles.categoriaChip,
+              selectedCategoria === categoria.idCategoriaDesastre && styles.categoriaChipSelected
+            ]}
+            onPress={() => setSelectedCategoria(categoria.idCategoriaDesastre)}
+          >
+            <Text
+              style={[
+                styles.categoriaText,
+                selectedCategoria === categoria.idCategoriaDesastre && styles.categoriaTextSelected
+              ]}
+            >
+              {categoria.nmTitulo}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          {selectedCategoria
+            ? `${categorias.find(c => c.idCategoriaDesastre === selectedCategoria)?.nmTitulo}`
+            : 'Trending'}
+        </Text>
+      </View>
+
       <FlatList
-        data={[
-          { type: 'trending', title: 'Trending', data: trendingPosts },
-          { type: 'nearby', title: 'Próximo a Você', data: nearbyPosts },
-        ]}
-        renderItem={({ item }) => (
-          <View>
-            {renderSectionHeader(item.title)}
-            <FlatList
-              data={item.data}
-              renderItem={renderPostItem}
-              keyExtractor={(post) => `${item.type}-${post.idPostagem}`}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-            />
-          </View>
-        )}
-        keyExtractor={(item) => item.type}
+        data={trendingPosts}
+        renderItem={renderPostItem}
+        keyExtractor={(item) => item.idPostagem?.toString() || ''}
+        contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -135,13 +198,13 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -160,6 +223,32 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  categoriasContainer: {
+    marginBottom: 8,
+    maxHeight: 35,
+  },
+  categoriasContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoriaChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#1c1c1c',
+    marginRight: 2,
+  },
+  categoriaChipSelected: {
+    backgroundColor: '#ff4c4c',
+  },
+  categoriaText: {
+    color: '#d3d3d3',
+    fontSize: 14,
+  },
+  categoriaTextSelected: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
   sectionHeader: {
     padding: 16,
     paddingBottom: 8,
@@ -169,44 +258,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  horizontalList: {
-    paddingHorizontal: 16,
-  },
-  card: {
-    backgroundColor: '#1c1c1c',
-    borderRadius: 8,
+  list: {
     padding: 16,
-    marginRight: 16,
-    width: 300,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginLeft: 8,
-    flex: 1,
-  },
-  cardContent: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  location: {
-    fontSize: 12,
-    color: '#009b29',
-  },
-  date: {
-    fontSize: 12,
-    color: '#666',
   },
 }); 

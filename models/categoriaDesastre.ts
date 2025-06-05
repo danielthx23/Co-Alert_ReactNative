@@ -1,6 +1,6 @@
 export interface CategoriaDesastre {
-  idCategoriaDesastre?: number;
+  idCategoriaDesastre: number;
   nmTitulo: string;
-  nmDescricao: string;
-  dtCriacao?: Date;
+  dsCategoria?: string;
+  nmTipo?: string;
 } 

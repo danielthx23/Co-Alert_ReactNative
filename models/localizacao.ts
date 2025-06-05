@@ -1,9 +1,11 @@
 export interface Localizacao {
   idLocalizacao?: number;
+  nmBairro: string;
+  nmLogradouro: string;
+  nrNumero: number;
   nmCidade: string;
   nmEstado: string;
+  nrCep: string;
   nmPais: string;
-  nrLatitude?: number;
-  nrLongitude?: number;
-  dtCriacao?: Date;
+  dsComplemento?: string;
 } 

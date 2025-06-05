@@ -11,8 +11,9 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { localizacaoService } from '../../services/localizacao';
-import { Localizacao } from '../../models';
 import { LocalizacaoStackParamList } from '../../types/navigation';
+import { Localizacao } from '../../models/localizacao';
+import { useToast } from '../../contexts/ToastContext';
 
 type LocalizacaoDetalhesNavigationProp = StackNavigationProp<
   LocalizacaoStackParamList
@@ -29,14 +30,15 @@ export const LocalizacaoDetalhes: React.FC = () => {
   const navigation = useNavigation<LocalizacaoDetalhesNavigationProp>();
   const route = useRoute<LocalizacaoDetalhesRouteProp>();
   const { id } = route.params;
+  const { showToast } = useToast();
 
   const carregarLocalizacao = async () => {
     try {
-      const response = await localizacaoService.obterPorId(id);
+      const response = await localizacaoService.buscarPorId(id);
       setLocalizacao(response.data);
     } catch (error) {
       console.error(error);
-      // Toast will show error message
+      showToast('Erro', 'Não foi possível carregar a localização.', 'danger');
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -59,11 +61,15 @@ export const LocalizacaoDetalhes: React.FC = () => {
           onPress: async () => {
             try {
               await localizacaoService.deletar(id);
-              // Toast will show success message
+              showToast('Sucesso', 'Localização excluída com sucesso!', 'success');
               navigation.goBack();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'LocalizacaoListagem' }],
+              });
             } catch (error) {
               console.error(error);
-              // Toast will show error message
+              showToast('Erro', 'Não foi possível excluir a localização.', 'danger');
             }
           },
         },
@@ -74,7 +80,7 @@ export const LocalizacaoDetalhes: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#009b29" />
+        <ActivityIndicator size="large" color="#ff4c4c" />
       </View>
     );
   }
@@ -86,35 +92,47 @@ export const LocalizacaoDetalhes: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="location" size={64} color="#009b29" />
+        <View style={styles.titleContainer}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => {
+              navigation.goBack();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'LocalizacaoListagem' }],
+              });
+            }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.titulo}>{localizacao?.nmLogradouro}</Text>
+        </View>
       </View>
 
       <View style={styles.content}>
         <View style={styles.infoRow}>
           <Text style={styles.label}>Logradouro:</Text>
-          <Text style={styles.value}>{localizacao.nmLogradouro}</Text>
+          <Text style={styles.value}>{localizacao?.nmLogradouro}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <Text style={styles.label}>Bairro:</Text>
-          <Text style={styles.value}>{localizacao.nmBairro}</Text>
+          <Text style={styles.value}>{localizacao?.nmBairro}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <Text style={styles.label}>Cidade:</Text>
-          <Text style={styles.value}>{localizacao.nmCidade}</Text>
+          <Text style={styles.value}>{localizacao?.nmCidade}</Text>
         </View>
 
         <View style={styles.infoRow}>
           <Text style={styles.label}>Estado:</Text>
-          <Text style={styles.value}>{localizacao.nmEstado}</Text>
+          <Text style={styles.value}>{localizacao?.nmEstado}</Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.label}>Coordenadas:</Text>
-          <Text style={styles.value}>
-            {localizacao.nrLatitude}, {localizacao.nrLongitude}
-          </Text>
+          <Text style={styles.label}>CEP:</Text>
+          <Text style={styles.value}>{localizacao?.nrCep}</Text>
         </View>
       </View>
 
@@ -142,24 +160,39 @@ export const LocalizacaoDetalhes: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   header: {
-    alignItems: 'center',
-    padding: 32,
     backgroundColor: '#1c1c1c',
+    padding: 16,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    padding: 8,
+  },
+  titulo: {
+    fontSize: 20,
+    color: '#fff',
+    marginLeft: 16,
+    fontWeight: 'bold',
   },
   content: {
     padding: 16,
   },
   infoRow: {
-    marginBottom: 16,
+    backgroundColor: '#1c1c1c',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
   },
   label: {
     fontSize: 14,
@@ -167,7 +200,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   value: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#fff',
   },
   actions: {
@@ -180,12 +213,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    borderRadius: 4,
+    borderRadius: 8,
     flex: 1,
     marginHorizontal: 8,
   },
   editButton: {
-    backgroundColor: '#009b29',
+    backgroundColor: '#ff4c4c',
   },
   deleteButton: {
     backgroundColor: '#dc3545',

@@ -11,8 +11,8 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { categoriaDesastreService } from '../../services/categoriaDesastre';
-import { CategoriaDesastre } from '../../models';
 import { CategoriaDesastreStackParamList } from '../../types/navigation';
+import { CategoriaDesastre } from '../../models/categoriaDesastre';
 
 type CategoriaDesastreListagemNavigationProp = StackNavigationProp<
   CategoriaDesastreStackParamList
@@ -39,17 +39,25 @@ export const CategoriaDesastreListagem: React.FC = () => {
     carregarCategorias();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      carregarCategorias();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const renderItem = ({ item }: { item: CategoriaDesastre }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => {
-        if (item.id) {
-          navigation.navigate('CategoriaDesastreDetalhes', { id: item.id });
+        if (item.idCategoriaDesastre) {
+          navigation.navigate('CategoriaDesastreDetalhes', { id: item.idCategoriaDesastre });
         }
       }}
     >
       <View style={styles.cardHeader}>
-        <Ionicons name="list" size={24} color="#009b29" />
+        <Ionicons name="list" size={24} color="#ff4c4c" />
         <Text style={styles.title}>{item.nmTitulo}</Text>
       </View>
       <Text style={styles.tipo}>{item.nmTipo}</Text>
@@ -60,7 +68,7 @@ export const CategoriaDesastreListagem: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#009b29" />
+        <ActivityIndicator size="large" color="#ff4c4c" />
       </View>
     );
   }
@@ -70,7 +78,7 @@ export const CategoriaDesastreListagem: React.FC = () => {
       <FlatList
         data={categorias}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id?.toString() || ''}
+        keyExtractor={(item) => item.idCategoriaDesastre?.toString() || ''}
         contentContainerStyle={styles.list}
       />
       <TouchableOpacity
@@ -86,13 +94,13 @@ export const CategoriaDesastreListagem: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f0f0f',
+    backgroundColor: '#131315',
   },
   list: {
     padding: 16,
@@ -116,7 +124,7 @@ const styles = StyleSheet.create({
   },
   tipo: {
     fontSize: 16,
-    color: '#009b29',
+    color: '#ff4c4c',
     marginBottom: 8,
   },
   descricao: {
@@ -127,7 +135,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 16,
-    backgroundColor: '#009b29',
+    backgroundColor: '#ff4c4c',
     width: 56,
     height: 56,
     borderRadius: 28,
