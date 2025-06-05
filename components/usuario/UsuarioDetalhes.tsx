@@ -10,35 +10,35 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { usuarioService } from '../../services/usuario';
-import { UsuarioStackParamList } from '../../types/navigation';
 import { Usuario } from '../../models/usuario';
+import { UsuarioStackParamList, RootStackParamList } from '../../types/navigation';
 import { useToast } from '../../contexts/ToastContext';
 
-type UsuarioDetalhesNavigationProp = StackNavigationProp<UsuarioStackParamList>;
 type UsuarioDetalhesRouteProp = RouteProp<UsuarioStackParamList, 'UsuarioDetalhes'>;
+type UsuarioDetalhesNavigationProp = StackNavigationProp<RootStackParamList>;
 
 export const UsuarioDetalhes: React.FC = () => {
   const [usuario, setUsuario] = useState<Usuario>();
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<UsuarioDetalhesNavigationProp>();
   const route = useRoute<UsuarioDetalhesRouteProp>();
-  const { id } = route.params;
   const { showToast } = useToast();
-
-  const carregarUsuario = async () => {
-    try {
-      const response = await usuarioService.obterPorId(id);
-      setUsuario(response.data);
-    } catch (error) {
-      console.error(error);
-      showToast('Erro', 'Não foi possível carregar os dados do usuário.', 'danger');
-      navigation.goBack();
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { id } = route.params;
 
   useEffect(() => {
+    const carregarUsuario = async () => {
+      try {
+        const response = await usuarioService.obterPorId(id);
+        setUsuario(response.data);
+      } catch (error) {
+        console.error(error);
+        showToast('Erro', 'Não foi possível carregar os dados do usuário.', 'danger');
+        navigation.goBack();
+      } finally {
+        setLoading(false);
+      }
+    };
+
     carregarUsuario();
   }, [id]);
 
@@ -60,7 +60,12 @@ export const UsuarioDetalhes: React.FC = () => {
         <View style={styles.titleContainer}>
           <TouchableOpacity 
             style={styles.backButton} 
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainApp', params: { screen: 'HomeScreen' } }],
+              });
+            }}
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
@@ -92,7 +97,10 @@ export const UsuarioDetalhes: React.FC = () => {
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.button, styles.editButton]}
-            onPress={() => navigation.navigate('UsuarioFormulario', { id })}
+            onPress={() => navigation.navigate('UsuarioScreen', {
+              screen: 'UsuarioFormulario',
+              params: { id }
+            })}
           >
             <Ionicons name="create" size={20} color="#fff" />
             <Text style={styles.buttonText}>Editar Perfil</Text>

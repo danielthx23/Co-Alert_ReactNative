@@ -14,8 +14,9 @@ import { HomeScreen } from './screens/HomeScreen';
 import { PostagemScreen } from './screens/PostagemScreen';
 import { LocalizacaoScreen } from './screens/LocalizacaoScreen';
 import { CategoriaDesastreScreen } from './screens/CategoriaDesastreScreen';
-import { RootStackParamList, DrawerParamList, UsuarioStackParamList } from './types/navigation';
+import { RootStackParamList, DrawerParamList } from './types/navigation';
 import { usuarioService } from './services/usuario';
+import { useAuth } from './hooks/useAuth';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -26,6 +27,14 @@ function DrawerNavigator({ usuarioLogado, navigationRef }: {
 }) {
   const [menuVisible, setMenuVisible] = useState(false);
   const { showToast } = useToast();
+  const { checkAuth } = useAuth(navigationRef);
+
+  useEffect(() => {
+    const checkAuthentication = async () => {
+      await checkAuth();
+    };
+    checkAuthentication();
+  }, []);
 
   const handleNavigateToProfile = () => {
     setMenuVisible(false);
@@ -65,7 +74,8 @@ function DrawerNavigator({ usuarioLogado, navigationRef }: {
             fontSize: 16,
           },
           drawerItemStyle: {
-            borderRadius: 0,
+            borderRadius: 4,
+            paddingInline: 8
           },
           drawerActiveBackgroundColor: '#1b1b1b',
           drawerActiveTintColor: '#ff3838',
@@ -78,6 +88,10 @@ function DrawerNavigator({ usuarioLogado, navigationRef }: {
             fontSize: 18,
           },
           headerTintColor: '#fff',
+          sceneContainerStyle: {
+            backgroundColor: '#131315'
+          },
+          overlayColor: 'rgba(0, 0, 0, 0.0)',
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
               <TouchableOpacity
@@ -121,6 +135,11 @@ function DrawerNavigator({ usuarioLogado, navigationRef }: {
         <Drawer.Screen 
           name="HomeScreen" 
           options={{ title: 'Início' }}
+          listeners={{
+            focus: async () => {
+              await checkAuth();
+            },
+          }}
         >
           {props => <HomeScreen {...props} navigationRef={navigationRef} />}
         </Drawer.Screen>
@@ -128,16 +147,31 @@ function DrawerNavigator({ usuarioLogado, navigationRef }: {
           name="PostagemScreen" 
           component={PostagemScreen}
           options={{ title: 'Feed' }}
+          listeners={{
+            focus: async () => {
+              await checkAuth();
+            },
+          }}
         />
         <Drawer.Screen 
           name="CategoriaDesastreScreen" 
           component={CategoriaDesastreScreen}
           options={{ title: 'Categorias' }}
+          listeners={{
+            focus: async () => {
+              await checkAuth();
+            },
+          }}
         />
         <Drawer.Screen 
           name="LocalizacaoScreen" 
           component={LocalizacaoScreen}
           options={{ title: 'Localizações' }}
+          listeners={{
+            focus: async () => {
+              await checkAuth();
+            },
+          }}
         />
       </Drawer.Navigator>
     </>
@@ -145,9 +179,10 @@ function DrawerNavigator({ usuarioLogado, navigationRef }: {
 }
 
 function AppContent() {
-  const [usuarioLogado, setUsuarioLogado] = useState<Usuario>();
-  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [usuarioLogado, setUsuarioLogado] = useState<Usuario | undefined>(undefined);
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null!);
   const { showToast } = useToast();
+  const { redirectIfAuthenticated } = useAuth(navigationRef as RefObject<NavigationContainerRef<RootStackParamList>>);
 
   useEffect(() => {
     const verificarToken = async () => {
@@ -190,16 +225,33 @@ function AppContent() {
   return (
     <View style={styles.container}>
       <NavigationContainer ref={navigationRef}>
-        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="UsuarioScreen">
+        <Stack.Navigator 
+          screenOptions={{
+            headerShown: false,
+            cardStyle: { backgroundColor: '#131315' },
+            cardStyleInterpolator: ({ current: { progress } }) => ({
+              cardStyle: {
+                opacity: progress,
+              },
+            }),
+          }}
+          initialRouteName="UsuarioScreen"
+        >
           <Stack.Screen name="UsuarioScreen">
-            {props => <UsuarioScreen {...props} setUsuarioLogado={setUsuarioLogado} />}
+            {props => (
+              <UsuarioScreen 
+                {...props} 
+                setUsuarioLogado={setUsuarioLogado}
+                onLoginSuccess={redirectIfAuthenticated}
+              />
+            )}
           </Stack.Screen>
           <Stack.Screen name="MainApp">
             {(props) => (
               <DrawerNavigator
                 {...props}
                 usuarioLogado={usuarioLogado}
-                navigationRef={navigationRef as RefObject<NavigationContainerRef<RootStackParamList>>}
+                navigationRef={navigationRef}
               />
             )}
           </Stack.Screen>
@@ -238,7 +290,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.0)',
   },
   dropdownMenu: {
     position: 'absolute',

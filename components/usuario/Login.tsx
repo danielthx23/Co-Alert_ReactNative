@@ -9,34 +9,30 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { usuarioService } from '../../services/usuario';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthStackParamList, RootStackParamList } from '../../types/navigation';
+import { AuthStackParamList, RootStackParamList, UsuarioStackParamList } from '../../types/navigation';
 import ToastMessage, { ToastMessageRef } from '../Toast';
 import { LoginCredentials, Usuario, LoginResponse } from '../../models/usuario';
-
-type LoginScreenNavigationProp = StackNavigationProp<
-  AuthStackParamList & RootStackParamList,
-  'UsuarioLogin'
->;
+import { useToast } from '../../contexts/ToastContext';
 
 type LoginProps = {
-  setUsuarioLogado: React.Dispatch<React.SetStateAction<Usuario | undefined>>;
+  navigation: StackNavigationProp<UsuarioStackParamList, 'UsuarioLogin'>;
+  setUsuarioLogado: (usuario: Usuario) => void;
+  onLoginSuccess?: () => Promise<boolean>;
 };
 
 const AnimatedTextInput = Animated.createAnimatedComponent(RNTextInput);
 
-export const Login: React.FC<LoginProps> = ({ setUsuarioLogado }) => {
+export const Login: React.FC<LoginProps> = ({ navigation, setUsuarioLogado, onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [emailError, setEmailError] = useState('');
   const [senhaError, setSenhaError] = useState('');
   const [loading, setLoading] = useState(false);
   const toastRef = useRef<ToastMessageRef>(null);
-
-  const navigation = useNavigation<LoginScreenNavigationProp>();
+  const { showToast } = useToast();
 
   const emailBorderAnim = useRef(new Animated.Value(0)).current;
   const senhaBorderAnim = useRef(new Animated.Value(0)).current;
@@ -90,17 +86,19 @@ export const Login: React.FC<LoginProps> = ({ setUsuarioLogado }) => {
 
     try {
       setLoading(true);
-      const credentials: LoginCredentials = { nmEmail: email, nrSenha: senha };
-      const response = await usuarioService.autenticar(credentials);
-      const loginResponse = response.data as Usuario;
-      setUsuarioLogado(loginResponse);
-      toastRef.current?.show('Sucesso', 'Login efetuado com sucesso!', 'success');
-      await AsyncStorage.setItem('user_token', loginResponse.tokenProvisorio || '');
-      navigation.navigate('MainApp' as never);
+      const response = await usuarioService.autenticar({ nmEmail: email, nrSenha: senha });
+      await AsyncStorage.setItem('user_token', `${email},${senha}`);
+      setUsuarioLogado(response.data);
+      showToast('Sucesso', 'Login realizado com sucesso!', 'success');
+      
+      if (onLoginSuccess) {
+        await onLoginSuccess();
+      }
     } catch (error) {
-      toastRef.current?.show('Erro', 'E-mail ou senha incorretos.', 'danger')
+      console.error('Erro ao fazer login:', error);
       setSenhaError('E-mail ou senha incorretos');
       animateBorder(senhaBorderAnim, 2);
+      showToast('Erro', 'Credenciais inválidas.', 'danger');
     } finally {
       setLoading(false);
     }
@@ -238,7 +236,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#131315',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   logo: {
     width: 100,
@@ -250,6 +247,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     minWidth: 280,
+    padding: 20,
   },
   title: {
     fontSize: 32,
