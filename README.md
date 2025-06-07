@@ -24,7 +24,9 @@ Este projeto responde a um desafio crescente: o aumento de até 460% nos desastr
 
 ## Vídeo Pitch
 
-[Link vídeo pitch]()
+[Link vídeo pitch](https://www.youtube.com/watch?v=jo6uayD35yI)
+
+[![Pitch do projeto](https://img.youtube.com/vi/jo6uayD35yI/0.jpg)](https://www.youtube.com/watch?v=jo6uayD35yI)
 
 ## Step by Step de como rodar o projeto localmente
 
