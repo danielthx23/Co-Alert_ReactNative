@@ -35,6 +35,7 @@ export const UsuarioScreen: React.FC<UsuarioScreenProps> = ({ navigation, setUsu
         )}
       </Stack.Screen>
       <Stack.Screen name="UsuarioCadastro" component={UsuarioFormulario} />
+      <Stack.Screen name="UsuarioFormulario" component={UsuarioFormulario} />
       <Stack.Screen name="UsuarioDetalhes" component={UsuarioDetalhes} />
     </Stack.Navigator>
   );

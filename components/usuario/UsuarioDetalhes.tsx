@@ -96,10 +96,12 @@ export const UsuarioDetalhes: React.FC = () => {
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.button, styles.editButton]}
-            onPress={() => navigation.navigate('UsuarioScreen', {
-              screen: 'UsuarioFormulario',
-              params: { id }
-            })}
+            onPress={() => {
+              navigation.navigate('UsuarioScreen', {
+                screen: 'UsuarioFormulario',
+                params: { id }
+              });
+            }}
           >
             <Ionicons name="create" size={20} color="#fff" />
             <Text style={styles.buttonText}>Editar Perfil</Text>

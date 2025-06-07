@@ -239,6 +239,7 @@ function AppContent() {
                 opacity: progress,
               },
             }),
+            detachInactiveScreens: false
           }}
           initialRouteName="UsuarioScreen"
         >

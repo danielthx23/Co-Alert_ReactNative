@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -62,28 +62,36 @@ export const UsuarioFormulario: React.FC = () => {
     }
   };
 
-  React.useEffect(() => {
-    const carregarUsuario = async () => {
-      if (isEditing && route.params?.id) {
-        try {
-          const response = await usuarioService.obterPorId(route.params.id);
-          setUsuario({
-            nmUsuario: response.data.nmUsuario || '',
-            nmEmail: response.data.nmEmail || '',
-            nrSenha: '',
-          });
-          animateBorder(nomeBorderAnim, 1);
-          animateBorder(emailBorderAnim, 1);
-        } catch (error) {
-          console.error(error);
-          showToast('Erro', 'Não foi possível carregar os dados do usuário.', 'danger');
-          navigation.goBack();
-        }
+  const carregarUsuario = async () => {
+    if (isEditing && route.params?.id) {
+      try {
+        const response = await usuarioService.obterPorId(route.params.id);
+        setUsuario({
+          nmUsuario: response.data.nmUsuario || '',
+          nmEmail: response.data.nmEmail || '',
+          nrSenha: '',
+        });
+        animateBorder(nomeBorderAnim, 1);
+        animateBorder(emailBorderAnim, 1);
+      } catch (error) {
+        console.error(error);
+        showToast('Erro', 'Não foi possível carregar os dados do usuário.', 'danger');
+        navigation.goBack();
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     carregarUsuario();
   }, [route.params?.id]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      carregarUsuario();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleSubmit = async () => {
     if (!usuario.nmUsuario || !usuario.nmEmail.includes('@') || (!usuario.nrSenha && !isEditing)) {
